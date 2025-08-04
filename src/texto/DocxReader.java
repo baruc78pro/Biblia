@@ -8,6 +8,8 @@ import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JTextPane;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.Style;
 import javax.swing.text.StyleConstants;
@@ -19,48 +21,89 @@ import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFPictureData;
 
 public class DocxReader {
-    public void loadWordDocument(JTextPane textArea, JFrame frame) {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setFileFilter(new FileNameExtensionFilter("DOCX Files", "docx"));
-        int seleccion = fileChooser.showOpenDialog(frame);
-        textArea.setText("");
-        File archivo = fileChooser.getSelectedFile();
-        if (!archivo.getName().toLowerCase().endsWith(".docx")) {
-            JOptionPane.showMessageDialog(null, "Por favor selecciona un archivo .docx", "Formato no compatible", JOptionPane.WARNING_MESSAGE);
-            return;
-    }
-    try (FileInputStream fis = new FileInputStream(archivo);
-     XWPFDocument document = new XWPFDocument(fis)) {
-        frame.setTitle(archivo.getName());
     
-    StyledDocument doc = textArea.getStyledDocument();
-
-    // Iterar sobre los elementos del cuerpo del documento
-    for (IBodyElement element : document.getBodyElements()) {
-        if (element.getElementType() == BodyElementType.PARAGRAPH) {
-            XWPFParagraph paragraph = (XWPFParagraph) element;
-            doc.insertString(doc.getLength(), paragraph.getText() + "\n", null);
-        } else if (element.getElementType() == BodyElementType.TABLE) {
-            // Opcional: Manejar tablas si es necesario
+    public static class DocxLoadWorker extends SwingWorker<Void, Void> {
+        private final JTextPane textArea;
+        private final JFrame frame;
+        
+        public DocxLoadWorker(JTextPane textArea, JFrame frame) {
+            this.textArea = textArea;
+            this.frame = frame;
+        }
+        
+        @Override
+        protected Void doInBackground() throws Exception {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileFilter(new FileNameExtensionFilter("DOCX Files", "docx"));
+            
+            int seleccion = fileChooser.showOpenDialog(frame);
+            if (seleccion != JFileChooser.APPROVE_OPTION) return null;
+            
+            File archivo = fileChooser.getSelectedFile();
+            if (!archivo.getName().toLowerCase().endsWith(".docx")) {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(frame, 
+                        "Por favor selecciona un archivo .docx", 
+                        "Formato no compatible", 
+                        JOptionPane.WARNING_MESSAGE);
+                });
+                return null;
+            }
+            
+            try (FileInputStream fis = new FileInputStream(archivo);
+                 XWPFDocument document = new XWPFDocument(fis)) {
+                
+                SwingUtilities.invokeLater(() -> {
+                    frame.setTitle(archivo.getName());
+                    textArea.setText("");
+                });
+                
+                StyledDocument doc = textArea.getStyledDocument();
+                
+                // Procesar contenido del documento
+                for (IBodyElement element : document.getBodyElements()) {
+                    if (element.getElementType() == BodyElementType.PARAGRAPH) {
+                        XWPFParagraph paragraph = (XWPFParagraph) element;
+                        SwingUtilities.invokeLater(() -> {
+                            try {
+                                doc.insertString(doc.getLength(), paragraph.getText() + "\n", null);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        });
+                    }
+                }
+                
+                // Procesar imágenes
+                List<XWPFPictureData> pictures = document.getAllPictures();
+                for (XWPFPictureData picture : pictures) {
+                    byte[] bytes = picture.getData();
+                    ImageIcon imageIcon = new ImageIcon(bytes);
+                    
+                    SwingUtilities.invokeLater(() -> {
+                        Style style = textArea.addStyle("ImageStyle", null);
+                        StyleConstants.setIcon(style, imageIcon);
+                        try {
+                            doc.insertString(doc.getLength(), " ", style);
+                            doc.insertString(doc.getLength(), "\n", null);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    });
+                }
+            } catch (Exception e) {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(frame, 
+                        "Error al cargar el archivo: " + e.getMessage(), 
+                        "Error", 
+                        JOptionPane.ERROR_MESSAGE);
+                });
+            }
+            return null;
         }
     }
-
-        // Manejar imágenes incrustadas
-        List<XWPFPictureData> pictures = document.getAllPictures();
-    for (XWPFPictureData picture : pictures) {
-        byte[] bytes = picture.getData();
-        ImageIcon imageIcon = new ImageIcon(bytes);
-
-        // Convertir la imagen en un atributo para StyledDocument
-        Style style = textArea.addStyle("ImageStyle", null);
-        StyleConstants.setIcon(style, imageIcon);
-
-        // Insertar la imagen en el documento
-        doc.insertString(doc.getLength(), " ", style);
-        doc.insertString(doc.getLength(), "\n", null);
-    }
-    } catch (Exception e) {
-        JOptionPane.showMessageDialog(null, "Error al cargar el archivo: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
+    
+    public void loadWordDocument(JTextPane textArea, JFrame frame) {
+        new DocxLoadWorker(textArea, frame).execute();
     }
 }

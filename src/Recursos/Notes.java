@@ -7,7 +7,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
-import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JTextPane;
 import javax.swing.event.ChangeEvent;
@@ -36,7 +35,8 @@ public class Notes extends javax.swing.JFrame {
     private final DocxReader docxs = new DocxReader();
     private final Writer writer = new Writer();
     private final Reader reader = new Reader();
-    
+    private Timer timer;
+    private final BraileTraductor bt = new BraileTraductor();
     
     public Notes() {
         initComponents();
@@ -47,8 +47,6 @@ public class Notes extends javax.swing.JFrame {
         new CText().KeyEvent(this);
         new CText().buscador(textArea);
         new ClipBoard().configurarAtajos(textArea);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder());
-        textArea.setBorder(BorderFactory.createEmptyBorder());
         list.add(textArea);
         fondo.setBackground(Color.decode("#1C1C1E"));
         slider.setMajorTickSpacing(12);
@@ -68,16 +66,13 @@ public class Notes extends javax.swing.JFrame {
         textArea.addKeyListener(new KeyAdapter() {
         @Override
             public void keyPressed(KeyEvent e) {
-                // Verificar Ctrl+Shift+P (o la combinación que prefieras)
                 if ((e.getModifiersEx() & (KeyEvent.CTRL_DOWN_MASK | KeyEvent.SHIFT_DOWN_MASK)) != 0 
                     && e.getKeyCode() == KeyEvent.VK_P) {
-            
-                    // Crear y mostrar presentación con el texto actual
                     new Presentation().obtenerTexto(textArea);
                 } 
                 if((e.getModifiersEx() & (KeyEvent.CTRL_DOWN_MASK)) != 0 
                     && e.getKeyCode() == KeyEvent.VK_T){
-                        new BraileTraductor().traducir(textArea);
+                        bt.traducir(textArea);
                 }
             }
         });
@@ -88,9 +83,22 @@ public class Notes extends javax.swing.JFrame {
         paste.addActionListener(e->func.pasteText(textArea));
         copy.addActionListener(e->func.copyText(textArea));
         cut.addActionListener(e->func.cutText(textArea));
-        docx.addActionListener(e->docxs.loadWordDocument(textArea, this));
-        save.addActionListener(e->writer.guardarArchivo(textArea, this));
-        open.addActionListener(e->reader.abrirArchivo(textArea, this));
+        docx.addActionListener(e-> docxs.loadWordDocument(textArea, this));
+        save.addActionListener(e-> writer.guardarArchivo(textArea, this));
+        open.addActionListener(e-> reader.abrirArchivo(textArea, this));
+        textArea.addKeyListener(new KeyAdapter() {
+        @Override
+        public void keyPressed(KeyEvent e) {
+            if ((e.getModifiersEx() & (KeyEvent.CTRL_DOWN_MASK | KeyEvent.SHIFT_DOWN_MASK)) != 0 
+                && e.getKeyCode() == KeyEvent.VK_P) {
+                new Presentation().obtenerTexto(textArea);
+            } 
+            if((e.getModifiersEx() & (KeyEvent.CTRL_DOWN_MASK)) != 0 
+                && e.getKeyCode() == KeyEvent.VK_T) {
+                bt.traducir(textArea);
+            }
+        }
+    });
     }
     
     @SuppressWarnings("unchecked")

@@ -65,19 +65,14 @@ public class Bible extends javax.swing.JFrame {
     public void addButton(JButton button, String rutaArchivo, String id, int cant) {
     button.addActionListener(e -> {
         Book li = new Book();
-        // Primero configurar el libro
         li.cargarLibro(rutaArchivo, id, cant);
-        
-        // Luego mostrar la ventana
         new AbrirInstancia().instancia(li);
-        
-        // Finalmente cerrar esta ventana
         this.dispose();
     });
 }
     
     public void abrirArchivo(JTextPane pane, String rutaL) throws InterruptedException {
-        pane.setText(" "); // Mensaje inicial
+        pane.setText(" ");
         
         if (loadingWorker != null && !loadingWorker.isDone()) {
             loadingWorker.cancel(true);

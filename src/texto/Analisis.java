@@ -2,45 +2,61 @@ package texto;
 
 import javax.swing.JLabel;
 import javax.swing.JTextPane;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 
 public class Analisis {
     
-    public static int contadorPalabras(JTextPane pane) {
-        String texto = pane.getText().trim();
-        if (texto.isEmpty()) return 0;
-        String[] palabras = texto.split("\\s+");
-        return palabras.length;
-    }
+    public static class AnalysisWorker extends SwingWorker<Void, Void> {
+        private final JTextPane pane;
+        private final JLabel[] labels;
+        
+        public AnalysisWorker(JTextPane pane, JLabel... labels) {
+            this.pane = pane;
+            this.labels = labels;
+        }
+        
+        @Override
+        protected Void doInBackground() {
+            String text = pane.getText().trim();
+            
+            // Calcular todos los valores en segundo plano
+            int palabras = contadorPalabras(text);
+            int caracteres = contadorCaracter(text);
+            int lineas = contadorLineas(text);
+            int parrafos = contadorParrafo(text);
+            
+            SwingUtilities.invokeLater(() -> {
+                labels[0].setText("Total de palabras: " + palabras);
+                labels[1].setText("Total de caracteres: " + caracteres);
+                labels[2].setText("Total de lineas: " + lineas);
+                labels[3].setText("Total de parrafos: " + parrafos);
+            });
+            
+            return null;
+        }
+        
+        private int contadorPalabras(String texto) {
+            if (texto.isEmpty()) return 0;
+            return texto.split("\\s+").length;
+        }
 
-    public static int contadorCaracter(JTextPane pane) {
-        return pane.getText().trim().length();
-    }
+        private int contadorCaracter(String texto) {
+            return texto.length();
+        }
 
-    public static int contadorLineas(JTextPane pane) {
-        String texto = pane.getText().trim();
-        if (texto.isEmpty()) return 0;
-        String[] lineas = texto.split("\\r?\\n");
-        return lineas.length;
-    }
+        private int contadorLineas(String texto) {
+            if (texto.isEmpty()) return 0;
+            return texto.split("\\r?\\n").length;
+        }
 
-    public static int contadorParrafo(JTextPane pane) {
-        String texto = pane.getText().trim();
-        if (texto.isEmpty()) return 0;
-        String[] parrafos = texto.split("\\r?\\n\\s*\\r?\\n");
-        return parrafos.length;
+        private int contadorParrafo(String texto) {
+            if (texto.isEmpty()) return 0;
+            return texto.split("\\r?\\n\\s*\\r?\\n").length;
+        }
     }
     
-    public static int contadorTab(JTextPane pane) {
-        String texto = pane.getText().trim();
-        if (texto.isEmpty()) return 0;
-        String[] parrafos = texto.split("\\t");
-        return parrafos.length;
-    }
-    
-    public void imprimir(JTextPane texto, JLabel label1, JLabel label2, JLabel label3, JLabel label4){
-        label1.setText("Total de palabras: " + contadorPalabras(texto));
-        label2.setText("Total de caracterers: " + contadorCaracter(texto));
-        label3.setText("Total de lineas: " + contadorLineas(texto));
-        label4.setText("Total de parrafos: " + contadorParrafo(texto));
+    public void imprimir(JTextPane texto, JLabel... labels) {
+        new AnalysisWorker(texto, labels).execute();
     }
 }

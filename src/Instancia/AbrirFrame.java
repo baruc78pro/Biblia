@@ -13,9 +13,11 @@ public class AbrirFrame {
     public void instancia(JButton button, JFrame frame) {
         button.addActionListener(e -> {
             executor.execute(() -> {
+                frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
                 SwingUtilities.invokeLater(() -> {
                     frame.setVisible(true);
-                    frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+                    frame.revalidate();
+                    frame.repaint();
                 });
             });
         });
@@ -64,5 +66,8 @@ public class AbrirFrame {
                 });
             });
         });
+    }
+    public static void shutdown() {
+        executor.shutdown();
     }
 }

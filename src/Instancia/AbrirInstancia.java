@@ -10,12 +10,18 @@ public class AbrirInstancia {
     
     public void instancia(JFrame frame) {
         executor.execute(() -> {
+            frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            frame.pack();
+            frame.setLocationRelativeTo(null);
             SwingUtilities.invokeLater(() -> {
-                frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-                frame.pack();
-                frame.setLocationRelativeTo(null);
                 frame.setVisible(true);
+                frame.revalidate();
+                frame.repaint();
             });
         });
+    }
+    
+    public static void shutdown() {
+        executor.shutdown();
     }
 }

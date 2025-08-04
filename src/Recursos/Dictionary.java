@@ -12,20 +12,20 @@ import org.apache.pdfbox.rendering.ImageType;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
-import javax.swing.JScrollBar;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.UIManager;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.apache.pdfbox.Loader;
 import scrollbar.ScrollBarCustom;
 
 public class Dictionary extends javax.swing.JFrame {
+    
     public PDDocument document;
     private static final float SCALE_INCREMENT = 0.1f; // Incremento de escala
     private static final float MIN_SCALE = 0.1f; // Escala mínima
@@ -36,39 +36,8 @@ public class Dictionary extends javax.swing.JFrame {
     
     public Dictionary() {
         initComponents();
-        this.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        setIconImage(new ImageIcon(getClass().getResource("/Recursos/images/logo.png")).getImage());
-        this.setLocationRelativeTo(null);
-        this.setTitle("Diccionario");
-        this.requestFocusInWindow();
-        new CDiccionario().KeyEvent(this);
-        this.setFocusable(true);
-        this.setFocusTraversalKeysEnabled(false);
-        panel.setBackground(Color.decode("#D9D8D7"));
-        ver_pdf.setBackground(Color.decode("#F2EDE9"));
-        panel1.setBackground(Color.decode("#BF3434"));
-        abrir.setForeground(Color.decode("#FFFFFF"));
-        mas.setForeground(Color.decode("#FFFFFF"));
-        menos.setForeground(Color.decode("#FFFFFF"));
-        siguiente.setForeground(Color.decode("#FFFFFF"));
-        atras.setForeground(Color.decode("#FFFFFF"));
-        scrollPane.setBorder(BorderFactory.createEmptyBorder());
-        ScrollBarCustom sp = new ScrollBarCustom();
-        sp.setOrientation(JScrollBar.HORIZONTAL);
-        scrollPane.setHorizontalScrollBar(sp);
-        scrollPane.setVerticalScrollBar(new ScrollBarCustom());
-        ver_pdf.setBorder(BorderFactory.createEmptyBorder());
-        /*this.addKeyListener(new KeyAdapter() {}*/
-        ver_pdf.addMouseListener(new MouseAdapter(){
-            @Override
-            public void mousePressed(MouseEvent e){
-                if(e.getButton() == MouseEvent.BUTTON1){prev();}
-                if(e.getButton() == MouseEvent.BUTTON3){ next();}
-            }
-        });
-        ver_pdf.addMouseWheelListener(e -> { if (e.getWheelRotation() > 0) {min();} else {max();}});
-            
-        botones();
+        setupUI();
+        setupListeners();
     }
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
@@ -241,88 +210,180 @@ public class Dictionary extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
     
-    public void botones(){
-        abrir.addActionListener(e -> {
-            JFileChooser fileChooser = new JFileChooser();
-            fileChooser.setFileFilter(new FileNameExtensionFilter("PDF Files", "pdf"));
-            int option = fileChooser.showOpenDialog(this);
-            
-            if (option == JFileChooser.APPROVE_OPTION) {
-                File file = fileChooser.getSelectedFile();
-                String nombre = file.getName();
-                this.setTitle("Archivo " + nombre);
-            try {
-                document = Loader.loadPDF(file);
-            } catch (IOException ex) {
-                Logger.getLogger(Dictionary.class.getName()).log(Level.SEVERE, null, ex);
+    private void setupUI() {
+        this.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+        setIconImage(new ImageIcon(getClass().getResource("/Recursos/images/logo.png")).getImage());
+        this.setLocationRelativeTo(null);
+        this.setTitle("Diccionario");
+        this.requestFocusInWindow();
+        new CDiccionario().KeyEvent(this);
+        this.setFocusable(true);
+        this.setFocusTraversalKeysEnabled(false);
+        
+        // Configuración de colores
+        panel.setBackground(Color.decode("#D9D8D7"));
+        ver_pdf.setBackground(Color.decode("#F2EDE9"));
+        panel1.setBackground(Color.decode("#BF3434"));
+        abrir.setForeground(Color.decode("#FFFFFF"));
+        mas.setForeground(Color.decode("#FFFFFF"));
+        menos.setForeground(Color.decode("#FFFFFF"));
+        siguiente.setForeground(Color.decode("#FFFFFF"));
+        atras.setForeground(Color.decode("#FFFFFF"));
+        
+        // Configuración del scroll
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.setHorizontalScrollBar(new ScrollBarCustom());
+        scrollPane.setVerticalScrollBar(new ScrollBarCustom());
+        ver_pdf.setBorder(BorderFactory.createEmptyBorder());
+    }
+    
+    private void setupListeners() {
+        ver_pdf.addMouseListener(new MouseAdapter(){
+            @Override
+            public void mousePressed(MouseEvent e){
+                if(e.getButton() == MouseEvent.BUTTON1) prev();
+                if(e.getButton() == MouseEvent.BUTTON3) next();
             }
-                renderer = new PDFRenderer(document);
-                currentPage = 0;
-                renderPages();
-            }
-            this.requestFocusInWindow();
         });
         
-        mas.addActionListener(e -> {max();});
-        
-        menos.addActionListener(e -> {min();});
-        
-        atras.addActionListener(e -> {prev();});
-        
-        siguiente.addActionListener(e ->{next();});
+        ver_pdf.addMouseWheelListener(e -> {
+            if (e.getWheelRotation() > 0) min();
+            else max();
+        });
+            
+        // Configuración de botones
+        abrir.addActionListener(e -> openPDF());
+        mas.addActionListener(e -> max());
+        menos.addActionListener(e -> min());
+        atras.addActionListener(e -> prev());
+        siguiente.addActionListener(e -> next());
     }
-    private void max(){
+    
+    private void openPDF() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(new FileNameExtensionFilter("PDF Files", "pdf"));
+        int option = fileChooser.showOpenDialog(this);
+        
+        if (option == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            new PDFLoadWorker(file).execute();
+        }
+        this.requestFocusInWindow();
+    }
+    
+    private class PDFLoadWorker extends SwingWorker<Void, Void> {
+        private final File file;
+        
+        public PDFLoadWorker(File file) {
+            this.file = file;
+        }
+        
+        @Override
+        protected Void doInBackground() throws Exception {
+            try {
+                // Cargar el documento en segundo plano
+                document = Loader.loadPDF(file);
+                renderer = new PDFRenderer(document);
+                currentPage = 0;
+                
+                // Actualizar UI en el EDT
+                SwingUtilities.invokeLater(() -> {
+                    setTitle("Archivo " + file.getName());
+                    renderPages();
+                });
+            } catch (IOException ex) {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(Dictionary.this, 
+                        "Error al cargar el PDF: " + ex.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                });
+            }
+            return null;
+        }
+    }
+    
+    private class PageRenderWorker extends SwingWorker<Void, Void> {
+        @Override
+        protected Void doInBackground() throws Exception {
+            try {
+                // Renderizar en segundo plano
+                BufferedImage image = renderer.renderImageWithDPI(
+                    currentPage, 80 * scale, ImageType.RGB);
+                
+                // Actualizar UI en el EDT
+                SwingUtilities.invokeLater(() -> {
+                    ver_pdf.removeAll();
+                    ver_pdf.setLayout(new GridLayout(0, 1));
+                    ver_pdf.add(new JLabel(new ImageIcon(image)));
+                    ver_pdf.revalidate();
+                    ver_pdf.repaint();
+                });
+            } catch (IOException e) {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(Dictionary.this, 
+                        "Error al renderizar página: " + e.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                });
+            }
+            return null;
+        }
+    }
+    
+    private void max() {
         if (document != null) {
-            scale += SCALE_INCREMENT; // Incrementamos el factor de escala
-            renderPages();
+            scale += SCALE_INCREMENT;
+            new PageRenderWorker().execute();
         } else {
             JOptionPane.showMessageDialog(null, "Abrir un documento PDF primero");
         }
         this.requestFocusInWindow();
     }
     
-    private void min(){
+    private void min() {
         if (document != null && scale > MIN_SCALE) {
-            scale -= SCALE_INCREMENT; // Disminuimos el factor de escala
-            renderPages();
+            scale -= SCALE_INCREMENT;
+            new PageRenderWorker().execute();
         } else {
-            JOptionPane.showMessageDialog(null, "Abrir un documento PDF primero o ya has alcanzado el zoom mínimo");
+            JOptionPane.showMessageDialog(null, 
+                "Abrir un documento PDF primero o ya has alcanzado el zoom mínimo");
         }
         this.requestFocusInWindow();
     }
     
-    public void next(){
-        if (currentPage + PAGES_PER_BLOCK < document.getNumberOfPages()) {
+    private void next() {
+        if (document != null) {
+            if (currentPage + PAGES_PER_BLOCK < document.getNumberOfPages()) {
                 currentPage++;
-                renderPages();
+                new PageRenderWorker().execute();
             } else {
                 JOptionPane.showMessageDialog(null, "Ya estás en la última página");
             }
-            this.requestFocusInWindow();
+        } else {
+            JOptionPane.showMessageDialog(null, "Abrir un documento PDF primero");
+        }
+        this.requestFocusInWindow();
     }
-    public void prev(){
-        if (currentPage > 0) {
+    
+    private void prev() {
+        if (document != null) {
+            if (currentPage > 0) {
                 currentPage--;
-                renderPages();
+                new PageRenderWorker().execute();
             } else {
                 JOptionPane.showMessageDialog(null, "Ya estás en la primera página");
             }
-            this.requestFocusInWindow();
+        } else {
+            JOptionPane.showMessageDialog(null, "Abrir un documento PDF primero");
+        }
+        this.requestFocusInWindow();
     }
     
-    public void renderPages() {
-    ver_pdf.removeAll();
-    ver_pdf.setLayout(new GridLayout(0, 1));
-    try {
-        BufferedImage image = renderer.renderImageWithDPI(currentPage, 80 * scale, ImageType.RGB); // Renderiza la página actual
-        JLabel label = new JLabel(new ImageIcon(image));
-        ver_pdf.add(label);
-    } catch (IOException e) {
-        e.printStackTrace();
+    private void renderPages() {
+        if (document != null) {
+            new PageRenderWorker().execute();
+        }
     }
-    ver_pdf.revalidate();
-    ver_pdf.repaint();
-    }
+        
     public static void main(String args[]) {
         /* Set the Nimbus look and feel */
         //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
